@@ -1,3 +1,0 @@
-/home/vanya/triangles/CMakeFiles/triangle.dir
-/home/vanya/triangles/CMakeFiles/edit_cache.dir
-/home/vanya/triangles/CMakeFiles/rebuild_cache.dir
