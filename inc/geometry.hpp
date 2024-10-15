@@ -299,23 +299,23 @@ struct Plane
         {
             res.y = 0;
             res.z = 0;
-            res.x = d / a;
+            res.x = -d / a;
         }
         else if (b != 0)
         {
             res.x = 0;
             res.z = 0;
-            res.y = d / b;
+            res.y = -d / b;
         }
         else if (c != 0)
         {
             res.x = 0;
             res.y = 0;
-            res.z = d / c;
+            res.z = -d / c;
         }
         else
         {
-            std::cout << "error" << std::endl;
+            std::cout << "error with generating points" << std::endl;
         }
         return res;
     }
@@ -402,6 +402,9 @@ bool IntersectionOfTriangleAndPlane(const Plane& pl, const Triangle& tr, Point& 
         double dot1 = InvalidValue, dot2 = InvalidValue, dot3 = InvalidValue;
         Vect plane_normal(pl.a, pl.b, pl.c);
         Point point_on_plane = pl.generate_point_on_plane();
+        tr.p1.print_Point();
+        tr.p2.print_Point();
+        tr.p3.print_Point();
         Vect v1(point_on_plane, tr.p1);
         Vect v2(point_on_plane, tr.p2);
         Vect v3(point_on_plane, tr.p3);
@@ -410,22 +413,27 @@ bool IntersectionOfTriangleAndPlane(const Plane& pl, const Triangle& tr, Point& 
             v2.valid() &&
             v3.valid())
         {
+            v1.Vect_Print();
+            v2.Vect_Print();
+            v3.Vect_Print();
             dot1 = Dot(plane_normal, v1);
             dot2 = Dot(plane_normal, v2);
             dot3 = Dot(plane_normal, v3);
+            std::cout << dot1 << " " << dot2 << " " << dot3 << std::endl;
             if (fabs(dot1) < epsilon) dot1 = 0;
             if (fabs(dot2) < epsilon) dot2 = 0;
             if (fabs(dot3) < epsilon) dot3 = 0;
-            double d1d2, d1d3;
+            double d1d2, d1d3, d2d3;
             d1d2 = dot1 * dot2;
             d1d3 = dot1 * dot3;
-            if (d1d2 > 0.0 && d1d3 > 0.0) 
+            d2d3 = dot2 * dot3;
+            if (d1d2 > 0.0 && d1d3 > 0.0 && d2d3 > 0.0) 
             {
                 // all points above plane
                 std::cout << "all points above plain" << std::endl;
                 return false;
             } 
-            else if (d1d2 < 0.0 && d1d3 < 0.0) 
+            else if (d1d2 < 0.0 && d1d3 < 0.0 && d2d3 < 0.0) 
             {
                 // all points below plane
                 std::cout << "all points below plain" << std::endl;
@@ -599,46 +607,118 @@ bool IntersectionOfTriangleAndPlane(const Plane& pl, const Triangle& tr, Point& 
     return false;
 } 
 
-bool LineIntersectTriangle(const Line& l, const Triangle& tr)
+/* Check whether P and Q lie on the same side of line AB */
+double Side(const Point& p, const Point& q, const Point& a, const Point& b)
 {
-    Vect edge1(tr.p1, tr.p2);
-    Vect edge2(tr.p1, tr.p3);
-
-    Vect ray_cross_e2 = Cross(l.direction, edge2);
-    double det = Dot(edge1, ray_cross_e2);
-
-    if (det > -epsilon && det < epsilon)
-        return false;    // This ray is parallel to this triangle.
-    std::cout << "her";
-
-    double inv_det = 1.0 / det;
-    Vect s(tr.p1, l.origin);
-    double u = inv_det * Dot(s, ray_cross_e2);
-
-    if (u < 0 || u > 1)
-        return false;
-    std::cout << "no";
-    Vect s_cross_e1 = Cross(s, edge1);
-    double v = inv_det * Dot(l.direction, s_cross_e1);
-
-    if (v < 0 || u + v > 1)
-        return false;
-    std::cout << "yes";
-    double t = inv_det * Dot(edge2, s_cross_e1);
-    const Vect vec = l.direction * t;
-    std::cout << t << std::endl;
-    if (t > epsilon) // ray intersection
-    {
-        return true;
-    }
-    else if (t < epsilon && t > -epsilon)
-    {
-        return true;
-    }
-     // This means that there is a line intersection but not a ray intersection.
-    return false;
-    //return true;
+    double z1 = (b.x - a.x) * (p.y - a.y) - (p.x - a.x) * (b.y - a.y);
+    double z2 = (b.x - a.x) * (q.y - a.y) - (q.x - a.x) * (b.y - a.y);
+    return z1 * z2;
 }
+
+bool LineSegmentIntersectTriangle(const Point& p0, const Point& p1, const Triangle& tr)
+{
+
+/* Check whether segment P0P1 intersects with triangle t0t1t2 */
+
+    /* Check whether segment is outside one of the three half-planes
+     * delimited by the triangle. */
+    double f1 = Side(p0, tr.p3, tr.p1, tr.p2), f2 = Side(p1, tr.p3, tr.p1, tr.p2);
+    double f3 = Side(p0, tr.p1, tr.p2, tr.p3), f4 = Side(p1, tr.p1, tr.p2, tr.p3);
+    double f5 = Side(p0, tr.p2, tr.p3, tr.p1), f6 = Side(p1, tr.p2, tr.p3, tr.p1);
+    /* Check whether triangle is totally inside one of the two half-planes
+     * delimited by the segment. */
+    double f7 = Side(tr.p1, tr.p2, p0, p1);
+    double f8 = Side(tr.p2, tr.p3, p0, p1);
+    tr.print_Triangle();
+    printf("we are here but why\n");
+    std::cout << f1 << " " << f2  << " " << f3 << " " << f4 << " " << f5 << " " << f6  << " " << f7 << " " << f8 << std::endl;
+      /* If segment is strictly outside triangle, or triangle is strictly
+     * apart from the line, we're not intersecting */
+    if ((f1 < 0 && f2 < 0) || (f3 < 0 && f4 < 0) || (f5 < 0 && f6 < 0)
+          || (f7 > 0 && f8 > 0))
+        return false;
+    printf("here\n");
+    /* If segment is aligned with one of the edges, we're overlapping */
+    if ((f1 == 0 && f2 == 0) || (f3 == 0 && f4 == 0) || (f5 == 0 && f6 == 0))
+        return false;
+    printf(" orrr here\n");
+    /* If segment is outside but not strictly, or triangle is apart but
+     * not strictly, we're touching */
+    if ((f1 <= 0 && f2 <= 0) || (f3 <= 0 && f4 <= 0) || (f5 <= 0 && f6 <= 0)
+          || (f7 >= 0 && f8 >= 0))
+        return true;
+    printf("matbe\n");
+    /* If both segment points are strictly inside the triangle, we
+     * are not intersecting either */
+    // if (f1 > 0 && f2 > 0 && f3 > 0 && f4 > 0 && f5 > 0 && f6 > 0)
+    //     return false;
+
+    /* Otherwise we're intersecting with at least one edge */
+    return true;
+
+}
+
+Point Coords3dTo2d(const Point& p, const Vect& normal)
+{
+    double L = std::sqrt(pow(normal.a, 2) + pow(normal.b, 2) + pow(normal.c, 2)); // length of a normal vector
+    std::cout << " L is " << L << std::endl;
+    std::cout << " L2 is " << (pow(L, 2) * sqrt(1 - normal.c * normal.c / L / L)) << std::endl;
+    if (fabs((pow(L, 2) * sqrt(1 - normal.c * normal.c / L / L))) < epsilon)
+    {
+        return Point(p.x, p.y, p.z);
+    }
+    double x, y, z;
+    x = p.x * (normal.a * normal.c) / (pow(L, 2) * sqrt(1 - normal.c * normal.c / L / L)) + 
+        p.y * (normal.b * normal.c) / (pow(L, 2) * sqrt(1 - normal.c * normal.c / L / L)) -
+        p.z * (sqrt(1 - normal.c * normal.c / L / L));
+    y = -p.x * (normal.b / (L * sqrt(1 - normal.c * normal.c / L / L))) +
+        p.y * (normal.a / (L * sqrt(1 - normal.c * normal.c / L / L)));
+    z = p.x * normal.a / L + p.y * normal.b / L + p.z * normal.c / L;
+    std::cout << "z is " << z << std::endl;
+    Point res(x, y, z);
+    return res;
+}
+// }
+// bool LineIntersectTriangle(const Line& l, const Triangle& tr)
+// {
+//     Vect edge1(tr.p1, tr.p2);
+//     Vect edge2(tr.p1, tr.p3);
+
+//     Vect ray_cross_e2 = Cross(l.direction, edge2);
+//     double det = Dot(edge1, ray_cross_e2);
+
+//     if (det > -epsilon && det < epsilon)
+//         return false;    // This ray is parallel to this triangle.
+//     std::cout << "her";
+
+//     double inv_det = 1.0 / det;
+//     Vect s(tr.p1, l.origin);
+//     double u = inv_det * Dot(s, ray_cross_e2);
+
+//     if (u < 0 || u > 1)
+//         return false;
+//     std::cout << "no";
+//     Vect s_cross_e1 = Cross(s, edge1);
+//     double v = inv_det * Dot(l.direction, s_cross_e1);
+
+//     if (v < 0 || u + v > 1)
+//         return false;
+//     std::cout << "yes";
+//     double t = inv_det * Dot(edge2, s_cross_e1);
+//     const Vect vec = l.direction * t;
+//     std::cout << t << std::endl;
+//     if (t > epsilon) // ray intersection
+//     {
+//         return true;
+//     }
+//     else if (t < epsilon && t > -epsilon)
+//     {
+//         return true;
+//     }
+//      // This means that there is a line intersection but not a ray intersection.
+//     return false;
+//     //return true;
+// }
 
 bool IsPointInsideTriangle(const Point& p, const Triangle& tr)
 {
@@ -679,6 +759,7 @@ bool IsPointInsideTriangle(const Point& p, const Triangle& tr)
 bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
 {
     Plane pl(tr1.p1, tr1.p2, tr1.p3);
+    Vect plane_normal(pl.a, pl.b, pl.c);
     Point point_intersec;
     printf("ahahaha\n");
     Line line_intersec;
@@ -699,14 +780,28 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
     {
         //if line intersects triangle
         std::cout << "Line intersection" << std::endl;
+        line_intersec.print_Line();
         Point p1; // конец отрезка, по которому пересекается плоскость с треугольником
         p1 = line_intersec.origin + line_intersec.direction;
-        Line l1(line_intersec.origin, line_intersec.direction);
-        Line l2(p1, -line_intersec.direction);
-        if (LineIntersectTriangle(l1, tr2) && LineIntersectTriangle(l2, tr2))
+        line_intersec.origin = Coords3dTo2d(line_intersec.origin, plane_normal);
+        line_intersec.origin.print_Point();
+        p1 = Coords3dTo2d(p1, plane_normal);
+        Point p2, p3, p4; // новые координаты треугольника в 2д координатах
+        p2 = Coords3dTo2d(tr1.p1, plane_normal);
+        p3 = Coords3dTo2d(tr1.p2, plane_normal);
+        p4 = Coords3dTo2d(tr1.p3, plane_normal);
+        Triangle tr3(p2, p3, p4);
+        p1.print_Point();
+        if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
+            tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
+            tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
         {
             return true;
-        } 
+        }
+        else if (LineSegmentIntersectTriangle(line_intersec.origin, p1, tr3))
+        {
+            return true;
+        }
         else
         {
             return false;
@@ -714,8 +809,6 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
     }
     else if (intersec)
     {
-        // TODO 2d intersection
-        // если есть совпадающие точки и запустить дважды рей лайн интерсекшн
         if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
             tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
             tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
@@ -728,27 +821,28 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
             Point p2(tr1.p2);
             Point p3(tr1.p3);
             Vect v1(p1, p2);
-            Line l1(p1, v1);
-            Line l2(p2, -v1);
-            if (LineIntersectTriangle(l1, tr2) && LineIntersectTriangle(l2, tr2))
+            Point p1_new2d, p2_new2d, p3_new2d;
+            Point tr2p1_new2d, tr2p2_new2d, tr2p3_new2d;
+            p1_new2d = Coords3dTo2d(p1, plane_normal);
+            p2_new2d = Coords3dTo2d(p2, plane_normal);
+            p3_new2d = Coords3dTo2d(p3, plane_normal);
+            tr2p1_new2d = Coords3dTo2d(tr2.p1, plane_normal);
+            tr2p2_new2d = Coords3dTo2d(tr2.p2, plane_normal);
+            tr2p3_new2d = Coords3dTo2d(tr2.p3, plane_normal);
+            Triangle tr3(tr2p1_new2d, tr2p2_new2d, tr2p3_new2d);
+            if (LineSegmentIntersectTriangle(p1_new2d, p2_new2d, tr3))
             {
                 return true;
             }
             else
             {
-                Vect v2(p2, p3);
-                Line l3(p2, v2);
-                Line l4(p3, -v2);
-                if (LineIntersectTriangle(l3, tr2) && LineIntersectTriangle(l4, tr2))
+                if (LineSegmentIntersectTriangle(p2_new2d, p3_new2d, tr3))
                 {
                     return true;
                 }
                 else
                 {
-                    Vect v3(p1, p3);
-                    Line l5(p1, v3);
-                    Line l6(p3, -v3);
-                    if (LineIntersectTriangle(l5, tr2) && LineIntersectTriangle(l6, tr2))
+                    if (LineSegmentIntersectTriangle(p1_new2d, p3_new2d, tr3))
                     {
                         return true;
                     }
@@ -756,10 +850,11 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
                     {
                         return false;
                     }
+
                 }
             }
-            
-        }
+        }    
+
     }
     return false;
 }
@@ -768,34 +863,5 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
 } /* namespace geometry */
 
 
-// POINT IN TRIANGLE::
-/*bool pointInTriangle (Point p, Point a, Point b, Point c)
-{
-  return ((p.classify (a, b) != LEFT) &&
-        (p.classify(b, c) != LEFT) &&
-        (p.classify(c, a) != LEFT));
-}
 
-enum {LEFT,  RIGHT,  BEYOND,  BEHIND, BETWEEN, ORIGIN, DESTINATION};
-//    СЛЕВА, СПРАВА, ВПЕРЕДИ, ПОЗАДИ, МЕЖДУ, НАЧАЛО, КОНЕЦ
 
-int Point::classify(Point &p0, Point &pl)
-{
-  Point p2 = *this;
-  Point a = p1 - pO;
-  Point b = p2 - pO;
-  double sa = a. x * b.y - b.x * a.y;
-  if (sa > 0.0)
-    return LEFT;
-  if (sa < 0.0)
-    return RIGHT;
-  if ((a.x * b.x < 0.0) || (a.y * b.y < 0.0))
-    return BEHIND;
-  if (a.length() < b.length())
-    return BEYOND;
-  if (pO == p2)
-    return ORIGIN;
-  if (p1 == p2)
-    return DESTINATION;
-  return BETWEEN;
-}*/
