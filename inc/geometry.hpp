@@ -7,6 +7,7 @@ namespace geometry
 
 double epsilon = 0.00001;
 double LineLiesOnPlane = 0xBAABDAD;
+double LineValue = 0xBADBABE;
 
 struct Vect;
 
@@ -49,6 +50,11 @@ struct Point
         y = y - p1.y;
         z = z - p1.z;
         return *this;
+    }
+    
+    double count_distance(const Point& p) const
+    {
+         return (fabs(p.x - x) + fabs(p.y - y) + fabs(p.z - z));
     }
 
     bool operator==(const Point& p1) const
@@ -265,6 +271,7 @@ struct Plane
         if (fabs(a) < epsilon && fabs(b) < epsilon && fabs(c) < epsilon)
         {
             std::cout << "It's not a plane, it's a line" << std::endl;
+            d = LineValue;
         }
         else
         {
@@ -285,7 +292,14 @@ struct Plane
         }  
         return false;
     }
-
+    bool operator==(Plane p1)
+    {
+        if (fabs(p1.a - a) < epsilon && fabs(p1.b - b) < epsilon && fabs(p1.c - c) < epsilon && fabs(p1.d - d) < epsilon)
+        {
+            return true;
+        }
+        return false;
+    }
     void print_plane() const
     {
         std::cout << "plane: "  << std::endl;
@@ -395,9 +409,8 @@ bool LineIntersectPlane(const Line& l, const Plane& pl, Point& intersection) // 
 bool IntersectionOfTriangleAndPlane(const Plane& pl, const Triangle& tr, Point& point_intersec, Line& line_intersec)
 {
     bool is_plane_valid = pl.valid();
-    bool is_triag_valid = tr.valid();
     pl.print_plane();
-    if (is_plane_valid && is_triag_valid)
+    if (is_plane_valid)
     {
         double dot1 = InvalidValue, dot2 = InvalidValue, dot3 = InvalidValue;
         Vect plane_normal(pl.a, pl.b, pl.c);
@@ -720,6 +733,168 @@ Point Coords3dTo2d(const Point& p, const Vect& normal)
 //     //return true;
 // }
 
+bool InternalIsDegenerateTriangleIntersectsDegenerateTriangle(
+    const Point& p1, 
+    const Point& p2, 
+    const Point& p3, 
+    const Point& p4)
+{
+    Plane pl1(p1, p2, p3);
+    Plane pl2(p1, p2, p4);
+    if (pl1 == pl2)
+    {
+        if (!p1.count_distance(p3) > 0 || !p1.count_distance(p4) > 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// two lines
+bool IsDegenerateTriangleIntersectsDegenerateTriangle(const Triangle& tr1, const Triangle& tr2)
+{
+    double L112 = fabs(tr1.p1.x - tr1.p2.x) + fabs(tr1.p1.y - tr1.p2.y) + fabs(tr1.p1.z - tr1.p2.z);
+    double L123 = fabs(tr1.p3.x - tr1.p2.x) + fabs(tr1.p3.y - tr1.p2.y) + fabs(tr1.p3.z - tr1.p2.z);
+    double L113 = fabs(tr1.p1.x - tr1.p3.x) + fabs(tr1.p1.y - tr1.p3.y) + fabs(tr1.p1.z - tr1.p3.z);
+    double L212 = fabs(tr2.p1.x - tr2.p2.x) + fabs(tr2.p1.y - tr2.p2.y) + fabs(tr2.p1.z - tr2.p2.z);
+    double L223 = fabs(tr2.p3.x - tr2.p2.x) + fabs(tr2.p3.y - tr2.p2.y) + fabs(tr2.p3.z - tr2.p2.z);
+    double L213 = fabs(tr2.p1.x - tr2.p3.x) + fabs(tr2.p1.y - tr2.p3.y) + fabs(tr2.p1.z - tr2.p3.z);
+    if (L112 >= L123 && L112 >= L113)
+    {
+        if (L212 >= L123 && L212 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p2, tr2.p1, tr2.p2))
+            {
+                return true;
+            }
+        }
+        else if (L223 > L212 && L223 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p2, tr2.p2, tr2.p3))
+            {
+                return true;
+            }
+        }
+        else
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p2, tr2.p1, tr2.p3))
+            {
+                return true;
+            }
+        }
+    }
+    else if (L123 > L112 && L123 >= L113)
+    {
+        if (L212 >= L123 && L212 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p2, tr1.p3, tr2.p1, tr2.p2))
+            {
+                return true;
+            }
+        }
+        else if (L223 > L212 && L223 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p2, tr1.p3, tr2.p2, tr2.p3))
+            {
+                return true;
+            }
+        }
+        else
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p2, tr1.p3, tr2.p1, tr2.p3))
+            {
+                return true;
+            }
+        }
+    }
+    else
+    {
+        if (L212 >= L123 && L212 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p3, tr2.p1, tr2.p2))
+            {
+                return true;
+            }
+        }
+        else if (L223 > L212 && L223 >= L213)
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p3, tr2.p2, tr2.p3))
+            {
+                return true;
+            }
+        }
+        else
+        {
+            if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p3, tr2.p1, tr2.p3))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+// one line and one triangle
+bool IsDegenerateTriangleIntersectsTriangle(const Triangle& tr1, const Triangle& tr2, const Vect& plane_normal)
+{
+    double L12 = fabs(tr1.p1.x - tr1.p2.x) + fabs(tr1.p1.y - tr1.p2.y) + fabs(tr1.p1.z - tr1.p2.z);
+    double L23 = fabs(tr1.p3.x - tr1.p2.x) + fabs(tr1.p3.y - tr1.p2.y) + fabs(tr1.p3.z - tr1.p2.z);
+    double L13 = fabs(tr1.p1.x - tr1.p3.x) + fabs(tr1.p1.y - tr1.p3.y) + fabs(tr1.p1.z - tr1.p3.z);
+    Point tr2p1_new2d, tr2p2_new2d, tr2p3_new2d;
+    tr2p1_new2d = Coords3dTo2d(tr2.p1, plane_normal);
+    tr2p2_new2d = Coords3dTo2d(tr2.p2, plane_normal);
+    tr2p3_new2d = Coords3dTo2d(tr2.p3, plane_normal);
+    Triangle tr3(tr2p1_new2d, tr2p2_new2d, tr2p3_new2d);
+    if (L12 >= L23 && L12 >= L13)
+    {
+        // точки 1 и 2 самые удаленные 
+        Point p1, p2;
+        p1 = Coords3dTo2d(tr1.p1, plane_normal);
+        p2 = Coords3dTo2d(tr1.p2, plane_normal);
+        if (LineSegmentIntersectTriangle(p1, p2, tr3))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (L23 > L12 && L23 >= L13)
+    {
+        // точки 3 и 2 самые удаленные
+        Point p3, p2;
+        p2 = Coords3dTo2d(tr1.p2, plane_normal);
+        p3 = Coords3dTo2d(tr1.p3, plane_normal); 
+        if (LineSegmentIntersectTriangle(p3, p2, tr3))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        // точки 1 и 3 самые удаленные 
+        Point p1, p3;
+        p1 = Coords3dTo2d(tr1.p1, plane_normal);
+        p3 = Coords3dTo2d(tr1.p3, plane_normal);
+        if (LineSegmentIntersectTriangle(p1, p3, tr3))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+}
+
+
 bool IsPointInsideTriangle(const Point& p, const Triangle& tr)
 {
     Point p0(0, 0, 0);
@@ -760,101 +935,127 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
 {
     Plane pl(tr1.p1, tr1.p2, tr1.p3);
     Vect plane_normal(pl.a, pl.b, pl.c);
-    Point point_intersec;
-    printf("ahahaha\n");
-    Line line_intersec;
-    bool intersec = IntersectionOfTriangleAndPlane(pl, tr2, point_intersec, line_intersec);
-    if (point_intersec.valid())
+    Plane pl2(tr2.p1, tr2.p2, tr2.p3);
+    Vect plane2_normal(pl2.a, pl2.b, pl2.c);
+    if (tr1.p1 == tr1.p2 && tr1.p1 == tr1.p3)
     {
-        std::cout << "Point intersection" << std::endl;
-        if (IsPointInsideTriangle(point_intersec, tr1))
+        if (tr2.p1 == tr1.p1 || tr2.p2 == tr1.p1 || tr2.p3 == tr1.p1)
         {
             return true;
-        }
-        else
-        {
-            return false;
         }
     }
-    else if (line_intersec.valid())
+    else if (tr2.p1 == tr2.p2 && tr2.p1 == tr2.p3)
     {
-        //if line intersects triangle
-        std::cout << "Line intersection" << std::endl;
-        line_intersec.print_Line();
-        Point p1; // конец отрезка, по которому пересекается плоскость с треугольником
-        p1 = line_intersec.origin + line_intersec.direction;
-        line_intersec.origin = Coords3dTo2d(line_intersec.origin, plane_normal);
-        line_intersec.origin.print_Point();
-        p1 = Coords3dTo2d(p1, plane_normal);
-        Point p2, p3, p4; // новые координаты треугольника в 2д координатах
-        p2 = Coords3dTo2d(tr1.p1, plane_normal);
-        p3 = Coords3dTo2d(tr1.p2, plane_normal);
-        p4 = Coords3dTo2d(tr1.p3, plane_normal);
-        Triangle tr3(p2, p3, p4);
-        p1.print_Point();
-        if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
-            tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
-            tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
+        if (tr2.p1 == tr1.p1 || tr2.p1 == tr1.p2 || tr2.p1 == tr1.p3)
         {
             return true;
-        }
-        else if (LineSegmentIntersectTriangle(line_intersec.origin, p1, tr3))
-        {
-            return true;
-        }
-        else
-        {
-            return false;
         }
     }
-    else if (intersec)
+    else if (pl.d == 0 && pl2.d == 0)
     {
-        if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
-            tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
-            tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
+        if (IsDegenerateTriangleIntersectsDegenerateTriangle(tr1, tr2))
         {
             return true;
         }
-        else
+    }
+    else if (pl.d == 0)
+    {
+        if (IsDegenerateTriangleIntersectsTriangle(tr1, tr2, plane_normal))
         {
-            Point p1(tr1.p1);
-            Point p2(tr1.p2);
-            Point p3(tr1.p3);
-            Vect v1(p1, p2);
-            Point p1_new2d, p2_new2d, p3_new2d;
-            Point tr2p1_new2d, tr2p2_new2d, tr2p3_new2d;
-            p1_new2d = Coords3dTo2d(p1, plane_normal);
-            p2_new2d = Coords3dTo2d(p2, plane_normal);
-            p3_new2d = Coords3dTo2d(p3, plane_normal);
-            tr2p1_new2d = Coords3dTo2d(tr2.p1, plane_normal);
-            tr2p2_new2d = Coords3dTo2d(tr2.p2, plane_normal);
-            tr2p3_new2d = Coords3dTo2d(tr2.p3, plane_normal);
-            Triangle tr3(tr2p1_new2d, tr2p2_new2d, tr2p3_new2d);
-            if (LineSegmentIntersectTriangle(p1_new2d, p2_new2d, tr3))
+            return true;
+        }
+    }
+    else if (pl2.d == 0)
+    {
+        if (IsDegenerateTriangleIntersectsTriangle(tr2, tr1, plane2_normal))
+        {
+            return true;
+        }
+    }
+    else 
+    {
+        Point point_intersec;
+        printf("ahahaha\n");
+        Line line_intersec;
+        bool intersec = IntersectionOfTriangleAndPlane(pl, tr2, point_intersec, line_intersec);
+        if (point_intersec.valid())
+        {
+            std::cout << "Point intersection" << std::endl;
+            if (IsPointInsideTriangle(point_intersec, tr1))
+            {
+                return true;
+            }
+        }
+        else if (line_intersec.valid())
+        {
+            //if line intersects triangle
+            std::cout << "Line intersection" << std::endl;
+            line_intersec.print_Line();
+            Point p1; // конец отрезка, по которому пересекается плоскость с треугольником
+            p1 = line_intersec.origin + line_intersec.direction;
+            line_intersec.origin = Coords3dTo2d(line_intersec.origin, plane_normal);
+            line_intersec.origin.print_Point();
+            p1 = Coords3dTo2d(p1, plane_normal);
+            Point p2, p3, p4; // новые координаты треугольника в 2д координатах
+            p2 = Coords3dTo2d(tr1.p1, plane_normal);
+            p3 = Coords3dTo2d(tr1.p2, plane_normal);
+            p4 = Coords3dTo2d(tr1.p3, plane_normal);
+            Triangle tr3(p2, p3, p4);
+            p1.print_Point();
+            if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
+                tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
+                tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
+            {
+                return true;
+            }
+            else if (LineSegmentIntersectTriangle(line_intersec.origin, p1, tr3))
+            {
+                return true;
+            }
+        }
+        else if (intersec)
+        {
+            if (tr1.p1 == tr2.p1 || tr1.p1 == tr2.p2 || tr1.p1 == tr2.p3 ||
+                tr1.p2 == tr2.p1 || tr1.p2 == tr2.p2 || tr1.p2 == tr2.p3 ||
+                tr1.p3 == tr2.p1 || tr1.p3 == tr2.p2 || tr1.p3 == tr2.p3)
             {
                 return true;
             }
             else
             {
-                if (LineSegmentIntersectTriangle(p2_new2d, p3_new2d, tr3))
+                Point p1(tr1.p1);
+                Point p2(tr1.p2);
+                Point p3(tr1.p3);
+                Vect v1(p1, p2);
+                Point p1_new2d, p2_new2d, p3_new2d;
+                Point tr2p1_new2d, tr2p2_new2d, tr2p3_new2d;
+                p1_new2d = Coords3dTo2d(p1, plane_normal);
+                p2_new2d = Coords3dTo2d(p2, plane_normal);
+                p3_new2d = Coords3dTo2d(p3, plane_normal);
+                tr2p1_new2d = Coords3dTo2d(tr2.p1, plane_normal);
+                tr2p2_new2d = Coords3dTo2d(tr2.p2, plane_normal);
+                tr2p3_new2d = Coords3dTo2d(tr2.p3, plane_normal);
+                Triangle tr3(tr2p1_new2d, tr2p2_new2d, tr2p3_new2d);
+                if (LineSegmentIntersectTriangle(p1_new2d, p2_new2d, tr3))
                 {
                     return true;
                 }
                 else
                 {
-                    if (LineSegmentIntersectTriangle(p1_new2d, p3_new2d, tr3))
+                    if (LineSegmentIntersectTriangle(p2_new2d, p3_new2d, tr3))
                     {
                         return true;
                     }
                     else
                     {
-                        return false;
+                        if (LineSegmentIntersectTriangle(p1_new2d, p3_new2d, tr3))
+                        {
+                            return true;
+                        }
                     }
-
                 }
-            }
-        }    
-
+            }    
+        }
     }
     return false;
 }
