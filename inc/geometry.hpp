@@ -46,10 +46,12 @@ struct Point
 
     Point operator-(Point p1) 
     {
-        x = x - p1.x;
-        y = y - p1.y;
-        z = z - p1.z;
-        return *this;
+
+        //x = x - p1.x;
+        //y = y - p1.y;
+        //z = z - p1.z;
+        return (Point(x - p1.x, y - p1.y, z - p1.z));
+        //return *this;
     }
     
     double count_distance(const Point& p) const
@@ -732,6 +734,83 @@ Point Coords3dTo2d(const Point& p, const Vect& normal)
 //     return false;
 //     //return true;
 // }
+bool RecursiveComparison(const double& a, const double& b, const double& c, const double& d)
+{
+    if (a == 0)
+    {
+        if (b == 0)
+        {
+            if (c == 0)
+            {
+                return true;
+            }
+            else if (c == d)
+            {
+                return true;
+            }
+        }
+        else if (b == c && c == d)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsPlanesTheSame(const Plane& pl1, const Plane& pl2)
+{
+    if (pl1.a == 0 && pl2.a == 0|| pl1.b == 0 && pl2.b == 0|| pl1.c == 0 && pl2.c == 0|| pl1.d == 0 && pl2.d == 0)
+    {
+        double a = 0, b = 0, c = 0, d = 0;
+        
+        if (pl1.a != 0)
+        {
+            a = pl2.a / pl1.a;
+        }
+        if (pl1.b != 0)
+        {
+            b = pl2.b / pl1.b;
+        }
+        if (pl1.c != 0)
+        {
+            c = pl2.c / pl1.c;
+        }
+        if (pl1.d != 0)
+        {
+            d = pl2.d / pl1.d;
+        }
+        std::cout << a << b << c << d;
+        if (RecursiveComparison(a, b, c, d))
+        {
+            return true;
+        }
+        else
+        {
+            std::swap(a, b);
+            if (RecursiveComparison(a, b, c, d))
+            {
+                return true;
+            }
+            else
+            {
+                std::swap(a, c);
+                if (RecursiveComparison(a, b, c, d))
+                {
+                    return true;
+                }
+                else
+                {
+                    std::swap(a, d);
+                    if (RecursiveComparison(a, b, c, d))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
 
 bool InternalIsDegenerateTriangleIntersectsDegenerateTriangle(
     const Point& p1, 
@@ -741,9 +820,16 @@ bool InternalIsDegenerateTriangleIntersectsDegenerateTriangle(
 {
     Plane pl1(p1, p2, p3);
     Plane pl2(p1, p2, p4);
-    if (pl1 == pl2)
+    printf("suda");
+    pl1.print_plane();
+    pl2.print_plane();
+    
+    if (IsPlanesTheSame(pl1, pl2))
     {
-        if (!p1.count_distance(p3) > 0 || !p1.count_distance(p4) > 0)
+        printf("not the same\n");
+        std::cout << p1.count_distance(p3) << " " << p1.count_distance(p4) << std::endl;
+        // TODO assert if distance < 0
+        if (p1.count_distance(p3) > 0 || p1.count_distance(p4) > 0)
         {
             return true;
         }
@@ -935,8 +1021,10 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
 {
     Plane pl(tr1.p1, tr1.p2, tr1.p3);
     Vect plane_normal(pl.a, pl.b, pl.c);
+    plane_normal.Vect_Print();
     Plane pl2(tr2.p1, tr2.p2, tr2.p3);
     Vect plane2_normal(pl2.a, pl2.b, pl2.c);
+    plane2_normal.Vect_Print();
     if (tr1.p1 == tr1.p2 && tr1.p1 == tr1.p3)
     {
         if (tr2.p1 == tr1.p1 || tr2.p2 == tr1.p1 || tr2.p3 == tr1.p1)
@@ -951,23 +1039,23 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
             return true;
         }
     }
-    else if (pl.d == 0 && pl2.d == 0)
+    else if (pl.d == LineValue && pl2.d == LineValue)
     {
         if (IsDegenerateTriangleIntersectsDegenerateTriangle(tr1, tr2))
         {
             return true;
         }
     }
-    else if (pl.d == 0)
+    else if (pl.d == LineValue)
     {
-        if (IsDegenerateTriangleIntersectsTriangle(tr1, tr2, plane_normal))
+        if (IsDegenerateTriangleIntersectsTriangle(tr1, tr2, plane2_normal))
         {
             return true;
         }
     }
-    else if (pl2.d == 0)
+    else if (pl2.d == LineValue)
     {
-        if (IsDegenerateTriangleIntersectsTriangle(tr2, tr1, plane2_normal))
+        if (IsDegenerateTriangleIntersectsTriangle(tr2, tr1, plane_normal))
         {
             return true;
         }
