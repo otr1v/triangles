@@ -67,6 +67,11 @@ struct Point
         }
         return false;
     }
+
+    bool operator<(const Point & p) const 
+    {
+		return ((fabs(x-p.x) < epsilon) && (fabs(y - p.y) < epsilon));
+	}
     
 };  /* struct Point */
 
@@ -734,6 +739,72 @@ Point Coords3dTo2d(const Point& p, const Vect& normal)
 //     return false;
 //     //return true;
 // }
+
+
+struct line2d 
+{
+    double a, b, c;
+
+	line2d() {}
+	line2d(Point p, Point q) {
+		a = p.y - q.y;
+		b = q.x - p.x;
+		c = - a * p.x - b * p.y;
+		norm();
+	}
+ 
+	void norm() {
+		double z = sqrt (a*a + b*b);
+		if (abs(z) > epsilon)
+			a /= z,  b /= z,  c /= z;
+	}
+ 
+	double dist(Point p) const {
+		return a * p.x + b * p.y + c;
+	}
+};
+ 
+double det(double a, double b,double c, double d)  
+{
+    return (a * d - b * c);
+} 
+
+inline bool betw(double l, double r, double x) {
+	return std::min(l,r) <= x + epsilon && x <= std::max(l,r) + epsilon;
+}
+ 
+inline bool intersect_1d(double a, double b, double c, double d) {
+	if (a > b)  std::swap(a, b);
+	if (c > d)  std::swap(c, d);
+	return std::max(a, c) <= std::min(b, d) + epsilon;
+}
+ 
+bool intersect (Point a, Point b, Point c, Point d) {
+	if (! intersect_1d (a.x, b.x, c.x, d.x) || ! intersect_1d (a.y, b.y, c.y, d.y))
+		return false;
+	line2d m(a, b);
+	line2d n(c, d);
+	double zn = det(m.a, m.b, n.a, n.b);
+    Point left, right;
+	if (abs (zn) < epsilon) {
+		if (abs (m.dist (c)) > epsilon || abs (n.dist (a)) > epsilon)
+			return false;
+		if (b < a)  std::swap(a, b);
+		if (d < c)  std::swap(c, d);
+		left = std::max(a, c);
+		right = std::min(b, d);
+		return true;
+	}
+	else {
+		left.x = right.x = - det (m.c, m.b, n.c, n.b) / zn;
+		left.y = right.y = - det (m.a, m.c, n.a, n.c) / zn;
+		return betw (a.x, b.x, left.x)
+			&& betw (a.y, b.y, left.y)
+			&& betw (c.x, d.x, left.x)
+			&& betw (c.y, d.y, left.y);
+	}
+}
+
 bool RecursiveComparison(const double& a, const double& b, const double& c, const double& d)
 {
     if (a == 0)
@@ -827,9 +898,19 @@ bool InternalIsDegenerateTriangleIntersectsDegenerateTriangle(
     if (IsPlanesTheSame(pl1, pl2))
     {
         printf("not the same\n");
-        std::cout << p1.count_distance(p3) << " " << p1.count_distance(p4) << std::endl;
-        // TODO assert if distance < 0
-        if (p1.count_distance(p3) > 0 || p1.count_distance(p4) > 0)
+        // std::cout << p1.count_distance(p3) << " " << p1.count_distance(p4) << std::endl;
+        // // TODO assert if distance < 0
+        // if (p1.count_distance(p3) > 0 || p1.count_distance(p4) > 0)
+        // {
+        //     return true;
+        // }
+        Point p1_new2d, p2_new2d, p3_new2d, p4_new2d;
+        Vect plane_normal(pl1.a, pl1.b, pl1.c);
+        p1_new2d = Coords3dTo2d(p1, plane_normal);
+        p2_new2d = Coords3dTo2d(p2, plane_normal);
+        p3_new2d = Coords3dTo2d(p3, plane_normal);
+        p4_new2d = Coords3dTo2d(p4, plane_normal);
+        if (intersect(p1_new2d, p2_new2d, p3_new2d, p4_new2d))
         {
             return true;
         }
@@ -840,6 +921,7 @@ bool InternalIsDegenerateTriangleIntersectsDegenerateTriangle(
 // two lines
 bool IsDegenerateTriangleIntersectsDegenerateTriangle(const Triangle& tr1, const Triangle& tr2)
 {
+    // FIXME write a method pof tr.class
     double L112 = fabs(tr1.p1.x - tr1.p2.x) + fabs(tr1.p1.y - tr1.p2.y) + fabs(tr1.p1.z - tr1.p2.z);
     double L123 = fabs(tr1.p3.x - tr1.p2.x) + fabs(tr1.p3.y - tr1.p2.y) + fabs(tr1.p3.z - tr1.p2.z);
     double L113 = fabs(tr1.p1.x - tr1.p3.x) + fabs(tr1.p1.y - tr1.p3.y) + fabs(tr1.p1.z - tr1.p3.z);
@@ -847,7 +929,7 @@ bool IsDegenerateTriangleIntersectsDegenerateTriangle(const Triangle& tr1, const
     double L223 = fabs(tr2.p3.x - tr2.p2.x) + fabs(tr2.p3.y - tr2.p2.y) + fabs(tr2.p3.z - tr2.p2.z);
     double L213 = fabs(tr2.p1.x - tr2.p3.x) + fabs(tr2.p1.y - tr2.p3.y) + fabs(tr2.p1.z - tr2.p3.z);
     if (L112 >= L123 && L112 >= L113)
-    {
+    {   
         if (L212 >= L123 && L212 >= L213)
         {
             if (InternalIsDegenerateTriangleIntersectsDegenerateTriangle(tr1.p1, tr1.p2, tr2.p1, tr2.p2))
@@ -983,18 +1065,31 @@ bool IsDegenerateTriangleIntersectsTriangle(const Triangle& tr1, const Triangle&
 
 bool IsPointInsideTriangle(const Point& p, const Triangle& tr)
 {
+    
+        // Vect v5(tr.p1, tr.p2);
+        // Vect v6(tr.p2, tr.p3);
+        // Vect v7;
+        //v7 = Cross(v5, v6);
+        // 
+        // if (volume_of_tetrahedrom == volume_of_triangle)
+        // {
+        //     return true;
+        // }        
+    
+    /* if the volume of tetrahedrom based on 4 points != 0 && != volume of triangle tr */
+    // return false;
     Point p0(0, 0, 0);
     Vect v0(p0, p);
     Vect a(p0, tr.p1);
     Vect b(p0, tr.p2);
     Vect c(p0, tr.p3);
-
-    // Move the triangle so that the point becomes the 
-    // triangles origin
+    tr.print_Triangle();
+    // // Move the triangle so that the point becomes the 
+    // // triangles origin
     a = a - v0;
     b = b - v0;
     c = c - v0;
-
+    a.Vect_Print();
     // Compute the normal vectors for triangles:
     // u = normal of PBC
     // v = normal of PCA
@@ -1006,15 +1101,44 @@ bool IsPointInsideTriangle(const Point& p, const Triangle& tr)
 
     // Test to see if the normals are facing 
     // the same direction, return false if not
-    if (Dot(u, v) < 0.0) {
+    if (Dot(u, v) < 0.0) 
+    {
         return false;
     }
-    if (Dot(u, w) < 0.0) {
+    if (Dot(u, w) < 0.0) 
+    {
         return false;
     }
 
-    // All normals facing the same way, return true
-    return true;
+    /* если проекция точки на треугольнике лежит на треугольнике*/
+    Plane pl(tr.p1, tr.p2, tr.p3);
+    if (fabs(pl.a * p.x + pl.b * p.y + pl.c * p.z + pl.d) < epsilon)
+    {
+        return true;
+    }
+    // else
+    // {
+    return false;
+    // 
+    // Vect v4;
+    
+    // v4 = Cross(v2, v3);
+    // v4.Vect_Print();
+    // v1.Vect_Print();
+    // double volume_of_tetrahedrom = Dot(v1, v4);
+
+    // Vect v5(tr.p2, tr.p1);
+    // Vect v6(tr.p2, tr.p3);
+    // double volume_of_triangle = 0.5 * sqrt(pow(v5.b * v6.c - v5.c * v6.b, 2) + pow(v5.c * v6.a - v5.a * v6.c, 2) + pow(v5.a * v6.b - v5.b * v6.a, 2));
+    // std::cout << volume_of_triangle << " " << volume_of_tetrahedrom << std::endl;
+    // if (volume_of_tetrahedrom != volume_of_triangle)
+    // {
+    //     return false;
+    // }
+
+    // return true;
+    // // All normals facing the same way, return true
+    // return true;
 }
 
 bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
@@ -1027,16 +1151,68 @@ bool TriangleIntersectTriangle(const Triangle& tr1, const Triangle& tr2)
     plane2_normal.Vect_Print();
     if (tr1.p1 == tr1.p2 && tr1.p1 == tr1.p3)
     {
-        if (tr2.p1 == tr1.p1 || tr2.p2 == tr1.p1 || tr2.p3 == tr1.p1)
+        if (tr2.p1 == tr1.p1 || tr2.p2 == tr1.p1 || tr2.p3 == tr1.p1 || IsPointInsideTriangle(tr1.p1, tr2))
         {
             return true;
+        }
+        if (tr2.p1 == tr2.p2)
+        {
+            Plane pl(tr1.p1, tr2.p1, tr2.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }
+        }
+        else if (tr2.p1 == tr2.p3)
+        {
+            Plane pl(tr1.p1, tr2.p2, tr2.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }            
+        }
+        else if (tr2.p2 == tr2.p3)
+        {
+            Plane pl(tr1.p1, tr2.p1, tr2.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }            
         }
     }
     else if (tr2.p1 == tr2.p2 && tr2.p1 == tr2.p3)
     {
-        if (tr2.p1 == tr1.p1 || tr2.p1 == tr1.p2 || tr2.p1 == tr1.p3)
+        if (!IsPointInsideTriangle(tr2.p1, tr1))
+        {
+            std::cout << "stm" ;
+        }
+        if (tr2.p1 == tr1.p1 || tr2.p1 == tr1.p2 || tr2.p1 == tr1.p3 || IsPointInsideTriangle(tr2.p1, tr1))
         {
             return true;
+        }
+        if (tr1.p1 == tr1.p2)
+        {
+            Plane pl(tr2.p1, tr1.p1, tr1.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }
+        }
+        else if (tr1.p1 == tr1.p3)
+        {
+            Plane pl(tr2.p1, tr1.p2, tr1.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }            
+        }
+        else if (tr1.p2 == tr1.p3)
+        {
+            Plane pl(tr2.p1, tr1.p1, tr1.p3);
+            if (pl.d == LineValue)
+            {
+                return true;
+            }            
         }
     }
     else if (pl.d == LineValue && pl2.d == LineValue)
